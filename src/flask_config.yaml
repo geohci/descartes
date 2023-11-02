@@ -1,0 +1,10 @@
+# User-agent used for querying Wikidata API
+CUSTOM_UA: "ml-article-description (local) -- <email>"
+
+DEBUG: False
+
+# Don't sort JSON dictionaries
+JSON_SORT_KEYS: False
+
+# Output UTF-8 instead of ASCII
+JSON_AS_ASCII: False
