@@ -119,6 +119,7 @@ app = Flask(__name__)
 MODEL = ModelLoader()
 SUPPORTED_WIKIPEDIA_LANGUAGE_CODES = ['en', 'de', 'nl', 'es', 'it', 'ru', 'fr', 'zh', 'ar', 'vi', 'ja', 'fi', 'ko',
                                       'tr', 'ro', 'cs', 'et', 'lt', 'kk', 'lv', 'hi', 'ne', 'my', 'si', 'gu']
+LANGS_BY_SIZE = {l:i for i,l in enumerate(SUPPORTED_WIKIPEDIA_LANGUAGE_CODES)}
 
 # load in app user-agent or any other app config
 app.config.update(
@@ -136,14 +137,14 @@ def get_supported_languages():
 
 @app.route('/article', methods=['GET'])
 def get_article_description():
-    lang, title, num_beams, error = validate_api_args()
+    lang, title, num_beams, num_langs, error = validate_api_args()
     if error:
         return jsonify({'error': error})
     else:
-        return jsonify(run_model(lang, title, num_beams))
+        return jsonify(run_model(lang, title, num_beams, num_langs))
 
 
-def run_model(lang, title, num_beams):
+def run_model(lang, title, num_beams, num_langs=25):
     execution_times = {}  # just used right now for debugging
     features = {}  # just used right now for debugging
     starttime = time.time()
@@ -153,6 +154,8 @@ def run_model(lang, title, num_beams):
     wd_time = time.time()
     execution_times['wikidata-info (s)'] = wd_time - starttime
     features['descriptions'] = descriptions
+    features['sitelinks'] = list(sitelinks.keys())
+    sitelinks = {l: sitelinks[l] for i, l in enumerate(sorted(sitelinks, key=LANGS_BY_SIZE.get)) if i <= num_langs}
 
     first_paragraphs = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
@@ -331,7 +334,14 @@ def validate_api_args():
         except Exception:
             pass
 
-    return lang, page_title, num_beams, error
+    num_langs = 25
+    if request.args.get('num_langs'):
+        try:
+            num_langs = int(request.args['num_langs'])  # must return at least one sequence
+        except Exception:
+            pass
+
+    return lang, page_title, num_beams, num_langs, error
 
 
 def load_model():
